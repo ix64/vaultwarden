@@ -8,6 +8,7 @@ concurrency:
   cancel-in-progress: ${{ github.ref_type == 'branch' }}
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -19,6 +20,9 @@ on:
 defaults:
   run:
     shell: bash
+
+env:
+  GHCR_REPO: ${{ vars.GHCR_REPO || format('ghcr.io/{0}/vaultwarden', github.repository_owner) }}
 
 # A "release" environment must be created in the repository settings
 # (Settings > Environments > New environment) with the following
@@ -37,7 +41,7 @@ defaults:
 jobs:
   docker-build:
     name: Build Vaultwarden containers
-    if: ${{ github.repository == 'dani-garcia/vaultwarden' }}
+    if: ${{ github.repository == 'dani-garcia/vaultwarden' || github.repository == 'ix64/vaultwarden' }}
     environment: 
       name: release
       deployment: false
@@ -126,12 +130,12 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-        if: ${{ vars.GHCR_REPO != '' }}
+        if: ${{ env.GHCR_REPO != '' }}
 
       - name: Add registry for ghcr.io
-        if: ${{ vars.GHCR_REPO != '' }}
+        if: ${{ env.GHCR_REPO != '' }}
         env:
-          GHCR_REPO: ${{ vars.GHCR_REPO }}
+          GHCR_REPO: ${{ env.GHCR_REPO }}
         run: |
           echo "CONTAINER_REGISTRIES=${CONTAINER_REGISTRIES:+${CONTAINER_REGISTRIES},}${GHCR_REPO}" | tee -a "${GITHUB_ENV}"
 
@@ -153,7 +157,7 @@ jobs:
 
       - name: Configure build cache from/to
         env:
-          GHCR_REPO: ${{ vars.GHCR_REPO }}
+          GHCR_REPO: ${{ env.GHCR_REPO }}
           BASE_IMAGE: ${{ matrix.base_image }}
           NORMALIZED_ARCH: ${{ env.NORMALIZED_ARCH }}
         run: |
@@ -292,12 +296,12 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-        if: ${{ vars.GHCR_REPO != '' }}
+        if: ${{ env.GHCR_REPO != '' }}
 
       - name: Add registry for ghcr.io
-        if: ${{ vars.GHCR_REPO != '' }}
+        if: ${{ env.GHCR_REPO != '' }}
         env:
-          GHCR_REPO: ${{ vars.GHCR_REPO }}
+          GHCR_REPO: ${{ env.GHCR_REPO }}
         run: |
           echo "CONTAINER_REGISTRIES=${CONTAINER_REGISTRIES:+${CONTAINER_REGISTRIES},}${GHCR_REPO}" | tee -a "${GITHUB_ENV}"
 
@@ -372,10 +376,10 @@ jobs:
           push-to-registry: true
 
       - name: Attest - ghcr.io - ${{ matrix.base_image }}
-        if: ${{ vars.GHCR_REPO != '' && env.DIGEST_SHA != ''}}
+        if: ${{ env.GHCR_REPO != '' && env.DIGEST_SHA != ''}}
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
         with:
-          subject-name: ${{ vars.GHCR_REPO }}
+          subject-name: ${{ env.GHCR_REPO }}
           subject-digest: ${{ env.DIGEST_SHA }}
           push-to-registry: true
 
