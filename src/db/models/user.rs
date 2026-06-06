@@ -157,6 +157,17 @@ impl User {
         }
     }
 
+    pub fn account_keys_json(&self) -> Value {
+        json!({
+            "publicKeyEncryptionKeyPair": {
+                "wrappedPrivateKey": self.private_key.as_deref().unwrap_or_default(),
+                "publicKey": self.public_key.as_deref().unwrap_or_default(),
+                "Object": "publicKeyEncryptionKeyPair"
+            },
+            "Object": "privateKeys"
+        })
+    }
+
     pub fn check_valid_password(&self, password: &str) -> bool {
         crypto::verify_password_hash(
             password.as_bytes(),
@@ -280,6 +291,7 @@ impl User {
             "twoFactorEnabled": twofactor_enabled,
             "key": self.akey,
             "privateKey": self.private_key,
+            "accountKeys": self.account_keys_json(),
             "securityStamp": self.security_stamp,
             "organizations": orgs_json,
             "providers": [],
@@ -485,6 +497,74 @@ impl Invitation {
             Some(invitation) => invitation.delete(conn).await.is_ok(),
             None => false,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_user() -> User {
+        let now = Utc::now().naive_utc();
+
+        User {
+            uuid: UserId("user-id".to_owned()),
+            enabled: true,
+            created_at: now,
+            updated_at: now,
+            verified_at: None,
+            last_verifying_at: None,
+            login_verify_count: 0,
+            email: "user@example.com".to_owned(),
+            email_new: None,
+            email_new_token: None,
+            name: "User".to_owned(),
+            password_hash: Vec::new(),
+            salt: Vec::new(),
+            password_iterations: 0,
+            password_hint: None,
+            akey: String::new(),
+            private_key: None,
+            public_key: None,
+            _totp_secret: None,
+            totp_recover: None,
+            security_stamp: String::new(),
+            stamp_exception: None,
+            equivalent_domains: "[]".to_owned(),
+            excluded_globals: "[]".to_owned(),
+            client_kdf_type: User::CLIENT_KDF_TYPE_DEFAULT,
+            client_kdf_iter: User::CLIENT_KDF_ITER_DEFAULT,
+            client_kdf_memory: None,
+            client_kdf_parallelism: None,
+            api_key: None,
+            avatar_color: None,
+            external_id: None,
+        }
+    }
+
+    #[test]
+    fn account_keys_json_returns_strings_when_keys_are_missing() {
+        let user = test_user();
+
+        let account_keys = user.account_keys_json();
+        let key_pair = &account_keys["publicKeyEncryptionKeyPair"];
+
+        assert_eq!(key_pair["wrappedPrivateKey"].as_str(), Some(""));
+        assert_eq!(key_pair["publicKey"].as_str(), Some(""));
+        assert_eq!(key_pair["Object"].as_str(), Some("publicKeyEncryptionKeyPair"));
+        assert_eq!(account_keys["Object"].as_str(), Some("privateKeys"));
+    }
+
+    #[test]
+    fn account_keys_json_keeps_existing_private_key_when_public_key_is_missing() {
+        let mut user = test_user();
+        user.private_key = Some("2.private-key".to_owned());
+
+        let account_keys = user.account_keys_json();
+        let key_pair = &account_keys["publicKeyEncryptionKeyPair"];
+
+        assert_eq!(key_pair["wrappedPrivateKey"].as_str(), Some("2.private-key"));
+        assert_eq!(key_pair["publicKey"].as_str(), Some(""));
     }
 }
 

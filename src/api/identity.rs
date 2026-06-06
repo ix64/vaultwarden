@@ -520,19 +520,6 @@ async fn authenticated_response(
         Value::Null
     };
 
-    let account_keys = if user.private_key.is_some() {
-        json!({
-            "publicKeyEncryptionKeyPair": {
-                "wrappedPrivateKey": user.private_key,
-                "publicKey": user.public_key,
-                "Object": "publicKeyEncryptionKeyPair"
-            },
-            "Object": "privateKeys"
-        })
-    } else {
-        Value::Null
-    };
-
     let mut result = json!({
         "access_token": auth_tokens.access_token(),
         "expires_in": auth_tokens.expires_in(),
@@ -547,7 +534,7 @@ async fn authenticated_response(
         "ForcePasswordReset": false,
         "MasterPasswordPolicy": master_password_policy,
         "scope": auth_tokens.scope(),
-        "AccountKeys": account_keys,
+        "AccountKeys": user.account_keys_json(),
         "UserDecryptionOptions": {
             "HasMasterPassword": has_master_password,
             "MasterPasswordUnlock": master_password_unlock,
@@ -671,19 +658,6 @@ async fn user_api_key_login(
         Value::Null
     };
 
-    let account_keys = if user.private_key.is_some() {
-        json!({
-            "publicKeyEncryptionKeyPair": {
-                "wrappedPrivateKey": user.private_key,
-                "publicKey": user.public_key,
-                "Object": "publicKeyEncryptionKeyPair"
-            },
-            "Object": "privateKeys"
-        })
-    } else {
-        Value::Null
-    };
-
     // Note: No refresh_token is returned. The CLI just repeats the
     // client_credentials login flow when the existing token expires.
     let result = json!({
@@ -700,7 +674,7 @@ async fn user_api_key_login(
         "ResetMasterPassword": false, // TODO: according to official server seems something like: user.password_hash.is_empty(), but would need testing
         "ForcePasswordReset": false,
         "scope": AuthMethod::UserApiKey.scope(),
-        "AccountKeys": account_keys,
+        "AccountKeys": user.account_keys_json(),
         "UserDecryptionOptions": {
             "HasMasterPassword": has_master_password,
             "MasterPasswordUnlock": master_password_unlock,
